@@ -1,0 +1,12 @@
+# Compiled ACPI binaries
+# Include .aml in repo for convenience, but can regenerate from .dsl
+# *.aml
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+*.swp
+*.swo
+*~

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  OpenCore config.plist snippets for Mac Pro 5,1 SATA Hot-Plug Fix
+  
+  Copy the relevant sections into your existing config.plist.
+  Do NOT use this file as a complete config.plist.
+-->
+<plist version="1.0">
+<dict>
+	<!--
+	  ==========================================
+	  ACPI → Add
+	  ==========================================
+	  Add this dict to your ACPI/Add array.
+	-->
+	<key>ACPI-Add</key>
+	<array>
+		<dict>
+			<key>Comment</key>
+			<string>COMRESET ICH10 Port 1 - break stale SATA link on soft reboot</string>
+			<key>Enabled</key>
+			<true/>
+			<key>Path</key>
+			<string>SSDT-COMRESET.aml</string>
+		</dict>
+	</array>
+
+	<!--
+	  ==========================================
+	  Kernel → Patch
+	  ==========================================
+	  Add these dicts to your Kernel/Patch array.
+	-->
+	<key>Kernel-Patch</key>
+	<array>
+		<!-- Patch 1: Force Hot-Plug thread creation on all AHCI ports -->
+		<dict>
+			<key>Arch</key>
+			<string>x86_64</string>
+			<key>Base</key>
+			<string></string>
+			<key>Comment</key>
+			<string>Force SATA Hot-Plug thread creation (Sequoia)</string>
+			<key>Count</key>
+			<integer>1</integer>
+			<key>Enabled</key>
+			<true/>
+			<key>Find</key>
+			<data>9oNtAQAARHRG</data>
+			<key>Identifier</key>
+			<string>com.apple.driver.AppleAHCIPort</string>
+			<key>Limit</key>
+			<integer>0</integer>
+			<key>Mask</key>
+			<data></data>
+			<key>MaxKernel</key>
+			<string></string>
+			<key>MinKernel</key>
+			<string>24.0.0</string>
+			<key>Replace</key>
+			<data>9oNtAQAARJCQ</data>
+			<key>ReplaceMask</key>
+			<data></data>
+			<key>Skip</key>
+			<integer>0</integer>
+		</dict>
+		<!-- Patch 2: Force HandleComReset even when SATA link is already present -->
+		<dict>
+			<key>Arch</key>
+			<string>x86_64</string>
+			<key>Base</key>
+			<string></string>
+			<key>Comment</key>
+			<string>Force HandleComReset on all AHCI ports (Sequoia)</string>
+			<key>Count</key>
+			<integer>1</integer>
+			<key>Enabled</key>
+			<true/>
+			<key>Find</key>
+			<data>qAF0M4uziAAAAA==</data>
+			<key>Identifier</key>
+			<string>com.apple.driver.AppleAHCIPort</string>
+			<key>Limit</key>
+			<integer>0</integer>
+			<key>Mask</key>
+			<data></data>
+			<key>MaxKernel</key>
+			<string></string>
+			<key>MinKernel</key>
+			<string>24.0.0</string>
+			<key>Replace</key>
+			<data>qAGQkIuziAAAAA==</data>
+			<key>ReplaceMask</key>
+			<data></data>
+			<key>Skip</key>
+			<integer>0</integer>
+		</dict>
+	</array>
+</dict>
+</plist>
