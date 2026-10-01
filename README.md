@@ -160,6 +160,42 @@ Recompile with: `iasl ACPI/SSDT-COMRESET.dsl`
 
 > **Note:** The kernel patch byte sequences are specific to macOS Sequoia (kernel 24.x). Other macOS versions will have different byte patterns and require re-analysis of the `AppleAHCIPort` binary.
 
+## Adapting This to Ventura / Other AHCI Controllers
+
+If your system shows warm-reboot-only AHCI failures (for example repeated `IOAHCIBlockStorage` `CommandTimeout`/`WatchdogTimeout` on probe commands like `0xEC` and `0xF5`), that pattern is strongly consistent with the same stale-link + skipped-`HandleComReset()` path described above.
+
+### Re-deriving `AppleAHCIPort` Patch Offsets (per macOS build)
+
+Use the exact `AppleAHCIPort` binary from the target OS (for example Ventura 13.7.x), then re-derive offsets in disassembly:
+
+1. Copy the target binary:
+   ```bash
+   cp /System/Library/Extensions/AppleAHCIPort.kext/Contents/MacOS/AppleAHCIPort ~/Desktop/AppleAHCIPort-target
+   ```
+2. Open in Hopper/Ghidra/IDA and find `EnablePortOperation` (or the block that calls `WaitForLinkPresent()` and `HandleComReset()`).
+3. Locate the conditional jump that skips `HandleComReset()` when link is already present, then patch only that jump (typically to `NOP NOP`).
+4. Locate the hot-plug capability gate (`AHCI Port Hot Plug` bit test) in the port-init path, and patch the jump that skips hot-plug thread creation.
+5. Build OpenCore `Find/Replace` signatures using surrounding bytes (not absolute offsets), with `Count=1` and kernel-range limits (`MinKernel`/`MaxKernel`) for that OS version.
+
+Practical safety checks:
+
+- Ensure each `Find` pattern matches exactly once.
+- If a pattern matches multiple locations, include more neighboring bytes until unique.
+- Bring patches up one at a time to isolate regressions.
+
+### What Usually Generalizes vs What Is Platform-Specific
+
+The PHY-level stale-link break (`PxSCTL.DET = 4` then `0`) is AHCI-spec behavior and often portable across Intel AHCI controllers.
+
+Platform-specific parts that must be revalidated:
+
+- ACPI device path (`_SB.PCI0.SATA` vs `SAT0`, etc.)
+- PCI BAR/ABAR access method in ACPI
+- Port base offset (`0x100 + port * 0x80`)
+- Timing margins (`Sleep()` values)
+
+Avoid whole-device `_PS0`/`_PS3` power-cycling unless validated on your board/firmware, since that path is much more platform-dependent and can boot-loop.
+
 ## Technical Deep Dive
 
 ### Why Earlier SSDT Versions Failed
