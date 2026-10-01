@@ -162,7 +162,7 @@ Recompile with: `iasl ACPI/SSDT-COMRESET.dsl`
 
 ## Adapting This to Ventura / Other AHCI Controllers
 
-If your system shows warm-reboot-only AHCI failures (for example repeated `IOAHCIBlockStorage` `CommandTimeout`/`WatchdogTimeout` on probe commands like `0xEC` and `0xF5`), that pattern is strongly consistent with the same stale-link + skipped-`HandleComReset()` path described above.
+Warm-reboot-only AHCI failures, including repeated `IOAHCIBlockStorage` `CommandTimeout`/`WatchdogTimeout` errors on probe commands like `0xEC` and `0xF5`, are not specific to a stale link or a skipped `HandleComReset()`; power, cabling, device, and controller faults can produce similar symptoms. Treat the stale-link path as a hypothesis, and confirm mechanism-specific evidence (such as DET=3 with stale PxSIG and the driver skipping `HandleComReset()`) before attempting invasive kernel patches.
 
 ### Re-deriving `AppleAHCIPort` Patch Offsets (per macOS build)
 
@@ -173,9 +173,9 @@ Use the exact `AppleAHCIPort` binary from the target OS (for example Ventura 13.
    cp /System/Library/Extensions/AppleAHCIPort.kext/Contents/MacOS/AppleAHCIPort ~/Desktop/AppleAHCIPort-target
    ```
 2. Open in Hopper/Ghidra/IDA and find `EnablePortOperation` (or the block that calls `WaitForLinkPresent()` and `HandleComReset()`).
-3. Locate the conditional jump that skips `HandleComReset()` when link is already present, then patch only that jump (typically to `NOP NOP`).
+3. If analysis confirms that this conditional jump skips `HandleComReset()` in the affected case, patch only that jump (typically to `NOP NOP`).
 4. Locate the hot-plug capability gate (`AHCI Port Hot Plug` bit test) in the port-init path, and patch the jump that skips hot-plug thread creation.
-5. Build OpenCore `Find/Replace` signatures using surrounding bytes (not absolute offsets), with `Count=1` and kernel-range limits (`MinKernel`/`MaxKernel`) for that OS version.
+5. Only after confirming the relevant mechanism and target-build control flow, build OpenCore `Find/Replace` signatures using surrounding bytes (not absolute offsets), with `Count=1` and kernel-range limits (`MinKernel`/`MaxKernel`) for that OS version.
 
 Practical safety checks:
 
@@ -191,7 +191,7 @@ Platform-specific parts that must be revalidated:
 
 - ACPI device path (`_SB.PCI0.SATA` vs `SAT0`, etc.)
 - PCI BAR/ABAR access method in ACPI
-- Port base offset (`0x100 + port * 0x80`)
+- Actual port base offset (verify whether the `0x100 + port * 0x80` formula applies)
 - Timing margins (`Sleep()` values)
 
 Avoid whole-device `_PS0`/`_PS3` power-cycling unless validated on your board/firmware, since that path is much more platform-dependent and can boot-loop.
