@@ -160,6 +160,20 @@ Recompile with: `iasl ACPI/SSDT-COMRESET.dsl`
 
 > **Note:** The kernel patch byte sequences are specific to macOS Sequoia (kernel 24.x). Other macOS versions will have different byte patterns and require re-analysis of the `AppleAHCIPort` binary.
 
+### Sequoia 15.8.3 (24H241) verification — 2026-11-26
+
+Static analysis of AppleAHCIPort 384, x86_64 UUID `BEDAE87E-80D3-3D5F-9298-C7F09F9BD166`, confirms both original Find patterns occur exactly once. Disassembly confirms the COMRESET branch at `0x475e` in EnablePortOperation and the hot-plug branch at `0xb6b9` in InitializePort. The SSDT is unchanged. Runtime validation after a warm reboot is still required.
+
+**Important:** OpenCore Find and Replace are plist Data, not strings. In an XML plist, the `<data>` element contains Base64 exactly once; in a graphical plist editor, enter the raw hexadecimal bytes in a Data field. With Python plistlib, use `bytes.fromhex(...)` or copy the decoded Data values from `config-sample.plist`. Never Base64-encode bytes before assigning them to a plist Data value. Double encoding causes OpenCore to search for ASCII text and report `Not Found` with replacement count 0.
+
+Before rebooting, run the read-only validator against the installed x86_64 driver and your actual OpenCore config:
+
+```bash
+python3 verify-patches.py /Volumes/EFI/EFI/OC/config.plist
+```
+
+It verifies exact patch settings, unique binary matches, and the enabled SSDT and its installed contents. It does not modify your configuration. A passing static check is not proof of a successful boot. Back up the original EFI config before editing; after reboot, check the OpenCore log for one replacement per patch and confirm the affected disk remains visible. These patches apply to all AHCI ports, so test both boot and data disks.
+
 ## Adapting This to Ventura / Other AHCI Controllers
 
 Warm-reboot-only AHCI failures, including repeated `IOAHCIBlockStorage` `CommandTimeout`/`WatchdogTimeout` errors on probe commands like `0xEC` and `0xF5`, are not specific to a stale link or a skipped `HandleComReset()`; power, cabling, device, and controller faults can produce similar symptoms. Treat the stale-link path as a hypothesis, and confirm mechanism-specific evidence (such as DET=3 with stale PxSIG and the driver skipping `HandleComReset()`) before attempting invasive kernel patches.
